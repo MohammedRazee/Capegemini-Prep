@@ -1,0 +1,38 @@
+# Checks every link in the repo once a month (and on demand).
+# If any link is broken, it opens an issue so it can be fixed.
+name: Monthly link check
+
+on:
+  schedule:
+    - cron: "0 4 1 * *"   # 1st of every month, 04:00 UTC
+  workflow_dispatch:       # lets you run it manually from the Actions tab
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check links
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --max-retries 2
+            --accept 200,201,204,301,302,403,429
+            --exclude-path experiences/TEMPLATE.md
+            './**/*.md'
+          fail: false
+
+      - name: Open an issue if links are broken
+        if: steps.lychee.outputs.exit_code != 0
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: Broken links found (monthly check)
+          content-filepath: ./lychee/out.md
+          labels: broken-links
